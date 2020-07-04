@@ -7,7 +7,7 @@ namespace WinAVFS.CLI
     {
         public static void Main(string[] args)
         {
-            var fs = new ReadOnlyAVFS();
+            var fs = new ReadOnlyAVFS(new ZipArchiveProvider(@"D:\test.zip"));
             fs.Mount('Z');
             Console.ReadLine();
             fs.Unmount('Z');

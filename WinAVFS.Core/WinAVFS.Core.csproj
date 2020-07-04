@@ -9,4 +9,8 @@
       <PackageReference Include="DokanNet" Version="1.4.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="System.IO.Compression" />
+    </ItemGroup>
+
 </Project>

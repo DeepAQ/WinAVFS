@@ -1,23 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Security.AccessControl;
 using DokanNet;
+using DokanNet.Logging;
 using FileAccess = DokanNet.FileAccess;
 
 namespace WinAVFS.Core
 {
     public class ReadOnlyAVFS : IDokanOperations
     {
+        private IArchiveProvider archiveProvider;
+        private FSTree fsTree;
+
+        public ReadOnlyAVFS(IArchiveProvider archiveProvider)
+        {
+            this.archiveProvider = archiveProvider;
+        }
+
         public void Mount(char driveLetter)
         {
-            this.Mount($"{driveLetter}:", DokanOptions.DebugMode | DokanOptions.WriteProtection);
+            this.fsTree = this.archiveProvider.ReadFSTree();
+            this.Mount($"{driveLetter}:", DokanOptions.WriteProtection, new NullLogger());
         }
 
         public void Unmount(char driveLetter)
         {
             Dokan.Unmount(driveLetter);
+            this.fsTree = null;
         }
 
         #region Dokan filesystem implementation
@@ -62,7 +74,32 @@ namespace WinAVFS.Core
 
         public NtStatus FindFiles(string fileName, out IList<FileInformation> files, IDokanFileInfo info)
         {
-            files = null;
+            Console.WriteLine(fileName);
+            files = new List<FileInformation>(0);
+
+            var paths = fileName.Split('\\');
+            var node = this.fsTree.Root;
+            foreach (var path in paths.Where(x => !string.IsNullOrEmpty(x)))
+            {
+                if (!node.IsDirectory || !node.Children.ContainsKey(path))
+                {
+                    return NtStatus.ObjectPathNotFound;
+                }
+
+                node = node.Children[path];
+            }
+
+            if (!node.IsDirectory)
+            {
+                return NtStatus.NotADirectory;
+            }
+
+            files = node.Children.Select(child => new FileInformation
+            {
+                FileName = child.Value.Name,
+                Length = child.Value.Length,
+                Attributes = (child.Value.IsDirectory ? FileAttributes.Directory : 0) | FileAttributes.ReadOnly
+            }).ToList();
             return NtStatus.Success;
         }
 
@@ -70,7 +107,7 @@ namespace WinAVFS.Core
             IDokanFileInfo info)
         {
             files = null;
-            return NtStatus.Success;
+            return NtStatus.NotImplemented;
         }
 
         public NtStatus SetFileAttributes(string fileName, FileAttributes attributes, IDokanFileInfo info)
@@ -123,7 +160,7 @@ namespace WinAVFS.Core
             out long totalNumberOfFreeBytes, IDokanFileInfo info)
         {
             freeBytesAvailable = 0;
-            totalNumberOfBytes = 0;
+            totalNumberOfBytes = this.fsTree.Root.Length;
             totalNumberOfFreeBytes = 0;
             return NtStatus.Success;
         }
@@ -153,13 +190,13 @@ namespace WinAVFS.Core
 
         public NtStatus Mounted(IDokanFileInfo info)
         {
-            Console.WriteLine($"Mounted readonly filesystem: PID={info.ProcessId}, requestor={info.GetRequestor()}");
+            Console.WriteLine($"Mounted readonly filesystem");
             return NtStatus.Success;
         }
 
         public NtStatus Unmounted(IDokanFileInfo info)
         {
-            Console.WriteLine($"Unmounted readonly filesystem: PID={info.ProcessId}, requestor={info.GetRequestor()}");
+            Console.WriteLine($"Unmounted readonly filesystem");
             return NtStatus.Success;
         }
 
