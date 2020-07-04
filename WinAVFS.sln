@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinAVFS.Core", "WinAVFS.Core\WinAVFS.Core.csproj", "{0FEB6B9C-FD58-4F32-B704-F1A85F967340}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WinAVFS.CLI", "WinAVFS.CLI\WinAVFS.CLI.csproj", "{0769F9F7-0BC5-4A7C-A8DC-BAD02D4C8E6B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{0FEB6B9C-FD58-4F32-B704-F1A85F967340}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0FEB6B9C-FD58-4F32-B704-F1A85F967340}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0FEB6B9C-FD58-4F32-B704-F1A85F967340}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0769F9F7-0BC5-4A7C-A8DC-BAD02D4C8E6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0769F9F7-0BC5-4A7C-A8DC-BAD02D4C8E6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0769F9F7-0BC5-4A7C-A8DC-BAD02D4C8E6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0769F9F7-0BC5-4A7C-A8DC-BAD02D4C8E6B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
