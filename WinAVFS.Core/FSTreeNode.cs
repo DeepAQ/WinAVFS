@@ -17,7 +17,7 @@ namespace WinAVFS.Core
 
         public long CompressedLength { get; internal set; } = 0;
 
-        public Dictionary<string, FSTreeNode> Children { get; internal set; }
+        public Dictionary<string, FSTreeNode> Children { get; }
 
         public bool IsDirectory => this.Children != null;
 
@@ -47,9 +47,9 @@ namespace WinAVFS.Core
                 return null;
             }
 
-            if (this.Children.ContainsKey(name))
+            if (this.Children.ContainsKey(name.ToLower()))
             {
-                return this.Children[name];
+                return this.Children[name.ToLower()];
             }
 
             var child = new FSTreeNode(isDirectory)
@@ -61,7 +61,7 @@ namespace WinAVFS.Core
                 CompressedLength = compressedLength,
                 Context = context,
             };
-            this.Children[name] = child;
+            this.Children[name.ToLower()] = child;
 
             if (!isDirectory)
             {

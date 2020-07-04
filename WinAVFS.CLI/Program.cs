@@ -7,10 +7,14 @@ namespace WinAVFS.CLI
     {
         public static void Main(string[] args)
         {
-            var fs = new ReadOnlyAVFS(new ZipArchiveProvider(@"D:\test.zip"));
-            fs.Mount('Z');
-            Console.ReadLine();
-            fs.Unmount('Z');
+            if (args.Length != 2)
+            {
+                Console.WriteLine("Usage: WinAVFS.CLI.exe <path to archive> <drive letter>");
+                return;
+            }
+
+            var fs = new ReadOnlyAVFS(new ZipArchiveProvider(args[0]));
+            fs.Mount(args[1][0]);
         }
     }
 }

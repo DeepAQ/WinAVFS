@@ -46,6 +46,7 @@ namespace WinAVFS.Core
                 return (FSTreeNode) info.Context;
             }
 
+            fileName = fileName.ToLower();
             return nodeCache.GetOrAdd(fileName, x =>
             {
                 var paths = x.Split('\\');

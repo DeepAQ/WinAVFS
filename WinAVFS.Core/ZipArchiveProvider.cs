@@ -28,7 +28,7 @@ namespace WinAVFS.Core
             foreach (var entry in archive.Entries)
             {
                 Console.WriteLine($"Loading {entry.FullName} into FS tree");
-                var paths = entry.FullName.Split('/');
+                var paths = entry.FullName.Split('/', '\\');
                 var node = root;
                 for (var i = 0; i < paths.Length - 1; i++)
                 {
