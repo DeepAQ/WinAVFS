@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace WinAVFS.Core
 {
@@ -14,11 +17,15 @@ namespace WinAVFS.Core
 
         public long CompressedLength { get; internal set; } = 0;
 
-        public object Context { get; internal set; }
-
         public Dictionary<string, FSTreeNode> Children { get; internal set; }
 
         public bool IsDirectory => this.Children != null;
+
+        public object Context { get; internal set; }
+
+        public IntPtr Buffer { get; set; } = IntPtr.Zero;
+
+        private long extracted = 0;
 
         public FSTreeNode() : this(false)
         {
@@ -68,6 +75,29 @@ namespace WinAVFS.Core
             }
 
             return child;
+        }
+
+        public void FillBuffer(Action<IntPtr> extractAction)
+        {
+            if (this.extracted > 0 || this.IsDirectory)
+            {
+                return;
+            }
+
+            lock (this)
+            {
+                if (Interlocked.Read(ref this.extracted) == 0)
+                {
+                    if (this.Buffer != IntPtr.Zero)
+                    {
+                        Marshal.FreeHGlobal(this.Buffer);
+                    }
+
+                    this.Buffer = Marshal.AllocHGlobal((IntPtr) this.Length);
+                    extractAction(this.Buffer);
+                    Interlocked.Exchange(ref extracted, 1);
+                }
+            }
         }
     }
 }

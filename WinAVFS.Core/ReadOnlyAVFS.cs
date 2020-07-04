@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.AccessControl;
 using DokanNet;
-using DokanNet.Logging;
 using FileAccess = DokanNet.FileAccess;
 
 namespace WinAVFS.Core
@@ -22,8 +22,10 @@ namespace WinAVFS.Core
 
         public void Mount(char driveLetter)
         {
+            this.Unmount(driveLetter);
+
             this.fsTree = this.archiveProvider.ReadFSTree();
-            this.Mount($"{driveLetter}:", DokanOptions.WriteProtection, new NullLogger());
+            this.Mount($"{driveLetter}:", DokanOptions.WriteProtection);
         }
 
         public void Unmount(char driveLetter)
@@ -32,26 +34,107 @@ namespace WinAVFS.Core
             this.fsTree = null;
         }
 
+        #region Private helper methods
+
+        private static readonly FileInformation[] EmptyFileInformation = new FileInformation[0];
+        private ConcurrentDictionary<string, FSTreeNode> nodeCache = new ConcurrentDictionary<string, FSTreeNode>();
+
+        private FSTreeNode GetNode(string fileName, IDokanFileInfo info = null)
+        {
+            if (info?.Context != null)
+            {
+                return (FSTreeNode) info.Context;
+            }
+
+            return nodeCache.GetOrAdd(fileName, x =>
+            {
+                var paths = x.Split('\\');
+                var node = this.fsTree.Root;
+                foreach (var path in paths.Where(y => !string.IsNullOrEmpty(y)))
+                {
+                    if (!node.IsDirectory || !node.Children.ContainsKey(path))
+                    {
+                        return null;
+                    }
+
+                    node = node.Children[path];
+                }
+
+                return node;
+            });
+        }
+
+        #endregion
+
         #region Dokan filesystem implementation
 
         public NtStatus CreateFile(string fileName, FileAccess access, FileShare share, FileMode mode,
             FileOptions options, FileAttributes attributes, IDokanFileInfo info)
         {
+            if (mode != FileMode.Open && mode != FileMode.OpenOrCreate)
+            {
+                Console.WriteLine($"Blocked CreateFile {fileName} {mode}");
+                return NtStatus.AccessDenied;
+            }
+
+            if (info.Context == null)
+            {
+                var node = this.GetNode(fileName);
+                if (node == null)
+                {
+                    if (mode == FileMode.OpenOrCreate)
+                    {
+                        return NtStatus.AccessDenied;
+                    }
+
+                    return NtStatus.ObjectPathNotFound;
+                }
+
+                info.IsDirectory = node.IsDirectory;
+                info.Context = node;
+            }
+
             return NtStatus.Success;
         }
 
         public void Cleanup(string fileName, IDokanFileInfo info)
         {
+            // No-op
         }
 
         public void CloseFile(string fileName, IDokanFileInfo info)
         {
+            // No-op
         }
 
         public NtStatus ReadFile(string fileName, byte[] buffer, out int bytesRead, long offset, IDokanFileInfo info)
         {
             bytesRead = 0;
-            return NtStatus.NotImplemented;
+            var node = this.GetNode(fileName, info);
+            if (node == null)
+            {
+                return NtStatus.ObjectPathNotFound;
+            }
+
+            node.FillBuffer(buf =>
+            {
+                unsafe
+                {
+                    using var stream = new UnmanagedMemoryStream((byte*) buf.ToPointer(), node.Length, node.Length,
+                        System.IO.FileAccess.Write);
+                    this.archiveProvider.ExtractFile(node.Context, stream);
+                }
+            });
+
+            unsafe
+            {
+                using var stream = new UnmanagedMemoryStream((byte*) node.Buffer.ToPointer(), node.Length, node.Length,
+                    System.IO.FileAccess.Read);
+                stream.Seek(offset, SeekOrigin.Begin);
+                bytesRead = stream.Read(buffer, 0, (int) Math.Min(buffer.Length, node.Length - offset));
+            }
+
+            return NtStatus.Success;
         }
 
         public NtStatus WriteFile(string fileName, byte[] buffer, out int bytesWritten, long offset,
@@ -69,29 +152,25 @@ namespace WinAVFS.Core
         public NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, IDokanFileInfo info)
         {
             fileInfo = new FileInformation();
-            return NtStatus.NotImplemented;
+            var node = this.GetNode(fileName, info);
+            if (node == null)
+            {
+                return NtStatus.ObjectPathNotFound;
+            }
+
+            fileInfo.FileName = node.Name;
+            fileInfo.Length = node.Length;
+            fileInfo.Attributes = (node.IsDirectory ? FileAttributes.Directory : 0) | FileAttributes.ReadOnly;
+            return NtStatus.Success;
         }
 
         public NtStatus FindFiles(string fileName, out IList<FileInformation> files, IDokanFileInfo info)
         {
-            Console.WriteLine(fileName);
-            files = new List<FileInformation>(0);
-
-            var paths = fileName.Split('\\');
-            var node = this.fsTree.Root;
-            foreach (var path in paths.Where(x => !string.IsNullOrEmpty(x)))
+            files = EmptyFileInformation;
+            var node = this.GetNode(fileName, info);
+            if (node == null)
             {
-                if (!node.IsDirectory || !node.Children.ContainsKey(path))
-                {
-                    return NtStatus.ObjectPathNotFound;
-                }
-
-                node = node.Children[path];
-            }
-
-            if (!node.IsDirectory)
-            {
-                return NtStatus.NotADirectory;
+                return NtStatus.ObjectPathNotFound;
             }
 
             files = node.Children.Select(child => new FileInformation
@@ -106,7 +185,7 @@ namespace WinAVFS.Core
         public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files,
             IDokanFileInfo info)
         {
-            files = null;
+            files = EmptyFileInformation;
             return NtStatus.NotImplemented;
         }
 
@@ -202,8 +281,8 @@ namespace WinAVFS.Core
 
         public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, IDokanFileInfo info)
         {
-            streams = null;
-            return NtStatus.Success;
+            streams = EmptyFileInformation;
+            return NtStatus.NotImplemented;
         }
 
         #endregion

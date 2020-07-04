@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace WinAVFS.Core
@@ -37,16 +38,24 @@ namespace WinAVFS.Core
                 var name = paths[paths.Length - 1];
                 if (!string.IsNullOrEmpty(name))
                 {
-                    node.GetOrAddChild(false, name, entry.Length, entry.CompressedLength, entry);
+                    node = node.GetOrAddChild(false, name, entry.Length, entry.CompressedLength, entry);
                 }
-                else
-                {
-                    node.Context = entry;
-                }
+                node.Context = entry;
             }
 
             Console.WriteLine($"Loaded {archive.Entries.Count} entries from archive");
             return new FSTree {Root = root};
+        }
+
+        public void ExtractFile(object context, Stream target)
+        {
+            if (!(context is ZipArchiveEntry entry))
+            {
+                throw new ArgumentException();
+            }
+
+            using var source = entry.Open();
+            source.CopyTo(target, 1024 * 1024);
         }
     }
 }
