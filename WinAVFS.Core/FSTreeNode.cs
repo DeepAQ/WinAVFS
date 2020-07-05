@@ -92,7 +92,15 @@ namespace WinAVFS.Core
                         this.Buffer = Marshal.AllocHGlobal((IntPtr) this.Length);
                     }
 
-                    extractAction(this.Buffer);
+                    try
+                    {
+                        extractAction(this.Buffer);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine(ex.StackTrace);
+                    }
+
                     this.extracted = 1;
                 }
             }
