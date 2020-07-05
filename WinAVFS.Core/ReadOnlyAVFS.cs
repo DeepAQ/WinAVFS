@@ -167,7 +167,7 @@ namespace WinAVFS.Core
 
             fileInfo.FileName = node.Name;
             fileInfo.Length = node.Length;
-            fileInfo.Attributes = (node.IsDirectory ? FileAttributes.Directory : 0) | FileAttributes.ReadOnly;
+            fileInfo.Attributes = node.IsDirectory ? FileAttributes.Directory : FileAttributes.Normal;
             return NtStatus.Success;
         }
 
