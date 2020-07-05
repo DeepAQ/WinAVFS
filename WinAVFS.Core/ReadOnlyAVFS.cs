@@ -10,7 +10,7 @@ using FileAccess = DokanNet.FileAccess;
 
 namespace WinAVFS.Core
 {
-    public class ReadOnlyAVFS : IDokanOperations
+    public class ReadOnlyAVFS : IDokanOperationsUnsafe
     {
         private IArchiveProvider archiveProvider;
         private FSTree fsTree;
@@ -111,6 +111,13 @@ namespace WinAVFS.Core
         public NtStatus ReadFile(string fileName, byte[] buffer, out int bytesRead, long offset, IDokanFileInfo info)
         {
             bytesRead = 0;
+            return NtStatus.NotImplemented;
+        }
+        
+        public NtStatus ReadFile(string fileName, IntPtr buffer, uint bufferLength, out int bytesRead, long offset,
+            IDokanFileInfo info)
+        {
+            bytesRead = 0;
             var node = this.GetNode(fileName, info);
             if (node == null)
             {
@@ -129,16 +136,21 @@ namespace WinAVFS.Core
 
             unsafe
             {
-                using var stream = new UnmanagedMemoryStream((byte*) node.Buffer.ToPointer(), node.Length, node.Length,
-                    System.IO.FileAccess.Read);
-                stream.Seek(offset, SeekOrigin.Begin);
-                bytesRead = stream.Read(buffer, 0, (int) Math.Min(buffer.Length, node.Length - offset));
+                bytesRead = (int) Math.Min(bufferLength, node.Length - offset);
+                Buffer.MemoryCopy(node.Buffer.ToPointer(), buffer.ToPointer(), bufferLength, bytesRead);
             }
 
             return NtStatus.Success;
         }
 
         public NtStatus WriteFile(string fileName, byte[] buffer, out int bytesWritten, long offset,
+            IDokanFileInfo info)
+        {
+            bytesWritten = 0;
+            return NtStatus.AccessDenied;
+        }
+        
+        public NtStatus WriteFile(string fileName, IntPtr buffer, uint bufferLength, out int bytesWritten, long offset,
             IDokanFileInfo info)
         {
             bytesWritten = 0;
