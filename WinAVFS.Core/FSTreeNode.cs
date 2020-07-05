@@ -6,15 +6,15 @@ namespace WinAVFS.Core
 {
     public class FSTreeNode
     {
-        public FSTreeNode Parent { get; internal set; }
+        public FSTreeNode Parent { get; private set; }
 
-        public string Name { get; internal set; } = "";
+        public string Name { get; private set; } = "";
 
-        public string FullName { get; internal set; } = "";
+        public string FullName { get; private set; } = "";
 
-        public long Length { get; internal set; } = 0;
+        public long Length { get; private set; } = 0;
 
-        public long CompressedLength { get; internal set; } = 0;
+        public long CompressedLength { get; private set; } = 0;
 
         public Dictionary<string, FSTreeNode> Children { get; }
 
@@ -22,7 +22,7 @@ namespace WinAVFS.Core
 
         public object Context { get; internal set; }
 
-        public IntPtr Buffer { get; set; } = IntPtr.Zero;
+        public IntPtr Buffer { get; internal set; } = IntPtr.Zero;
 
         private long extracted = 0;
 
@@ -87,12 +87,11 @@ namespace WinAVFS.Core
             {
                 if (this.extracted == 0)
                 {
-                    if (this.Buffer != IntPtr.Zero)
+                    if (this.Buffer == IntPtr.Zero)
                     {
-                        Marshal.FreeHGlobal(this.Buffer);
+                        this.Buffer = Marshal.AllocHGlobal((IntPtr) this.Length);
                     }
 
-                    this.Buffer = Marshal.AllocHGlobal((IntPtr) this.Length);
                     extractAction(this.Buffer);
                     this.extracted = 1;
                 }

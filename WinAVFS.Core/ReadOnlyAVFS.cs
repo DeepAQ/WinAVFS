@@ -130,7 +130,8 @@ namespace WinAVFS.Core
             unsafe
             {
                 bytesRead = (int) Math.Min(bufferLength, node.Length - offset);
-                Buffer.MemoryCopy(node.Buffer.ToPointer(), buffer.ToPointer(), bufferLength, bytesRead);
+                Buffer.MemoryCopy((byte*) node.Buffer.ToPointer() + offset, buffer.ToPointer(), bufferLength,
+                    bytesRead);
             }
 
             return NtStatus.Success;
