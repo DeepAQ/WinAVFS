@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.AccessControl;
 using DokanNet;
+using DokanNet.Logging;
 using FileAccess = DokanNet.FileAccess;
 
 namespace WinAVFS.Core
@@ -25,7 +26,7 @@ namespace WinAVFS.Core
             this.Unmount(driveLetter);
 
             this.fsTree = this.archiveProvider.ReadFSTree();
-            this.Mount($"{driveLetter}:", DokanOptions.WriteProtection);
+            this.Mount($"{driveLetter}:", DokanOptions.WriteProtection, new NullLogger());
         }
 
         public void Unmount(char driveLetter)
@@ -113,7 +114,7 @@ namespace WinAVFS.Core
             bytesRead = 0;
             return NtStatus.NotImplemented;
         }
-        
+
         public NtStatus ReadFile(string fileName, IntPtr buffer, uint bufferLength, out int bytesRead, long offset,
             IDokanFileInfo info)
         {
@@ -124,15 +125,7 @@ namespace WinAVFS.Core
                 return NtStatus.ObjectPathNotFound;
             }
 
-            node.FillBuffer(buf =>
-            {
-                unsafe
-                {
-                    using var stream = new UnmanagedMemoryStream((byte*) buf.ToPointer(), node.Length, node.Length,
-                        System.IO.FileAccess.Write);
-                    this.archiveProvider.ExtractFile(node.Context, stream);
-                }
-            });
+            node.FillBuffer(buf => this.archiveProvider.ExtractFileUnmanaged(node, buf));
 
             unsafe
             {
@@ -149,7 +142,7 @@ namespace WinAVFS.Core
             bytesWritten = 0;
             return NtStatus.AccessDenied;
         }
-        
+
         public NtStatus WriteFile(string fileName, IntPtr buffer, uint bufferLength, out int bytesWritten, long offset,
             IDokanFileInfo info)
         {

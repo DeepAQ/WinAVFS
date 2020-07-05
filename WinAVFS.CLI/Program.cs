@@ -13,7 +13,7 @@ namespace WinAVFS.CLI
                 return;
             }
 
-            var fs = new ReadOnlyAVFS(new ZipArchiveProvider(args[0]));
+            var fs = new ReadOnlyAVFS(new SevenZipProvider(args[0]));
             fs.Mount(args[1][0]);
         }
     }

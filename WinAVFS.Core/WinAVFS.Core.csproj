@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <PackageReference Include="DokanNet" Version="1.4.0" />
+      <PackageReference Include="SevenZipExtractor" Version="1.0.15" />
     </ItemGroup>
 
     <ItemGroup>

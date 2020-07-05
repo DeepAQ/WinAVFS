@@ -7,6 +7,6 @@ namespace WinAVFS.Core
     {
         FSTree ReadFSTree();
 
-        void ExtractFile(object context, Stream target);
+        void ExtractFileUnmanaged(FSTreeNode node, IntPtr buffer);
     }
 }

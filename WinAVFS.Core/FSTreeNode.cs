@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace WinAVFS.Core
 {
@@ -86,7 +85,7 @@ namespace WinAVFS.Core
 
             lock (this)
             {
-                if (Interlocked.Read(ref this.extracted) == 0)
+                if (this.extracted == 0)
                 {
                     if (this.Buffer != IntPtr.Zero)
                     {
@@ -95,7 +94,7 @@ namespace WinAVFS.Core
 
                     this.Buffer = Marshal.AllocHGlobal((IntPtr) this.Length);
                     extractAction(this.Buffer);
-                    Interlocked.Exchange(ref extracted, 1);
+                    this.extracted = 1;
                 }
             }
         }

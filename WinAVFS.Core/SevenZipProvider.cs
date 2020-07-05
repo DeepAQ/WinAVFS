@@ -1,33 +1,31 @@
 ﻿using System;
 using System.IO;
-using System.IO.Compression;
-using System.Text;
+using SevenZipExtractor;
 
 namespace WinAVFS.Core
 {
-    public class ZipArchiveProvider : IArchiveProvider
+    public class SevenZipProvider : IArchiveProvider
     {
-        private readonly ZipArchive archive;
+        private readonly ArchiveFile archive;
 
-        public ZipArchiveProvider(string path)
+        public SevenZipProvider(string path)
         {
-            Console.WriteLine($"Opening archive {path}");
-            this.archive = new ZipArchive(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read),
-                ZipArchiveMode.Read, false, Encoding.Default);
+            Console.WriteLine($"Opening archive {path} with 7z.dll");
+            this.archive = new ArchiveFile(path);
         }
 
         public void Dispose()
         {
-            this.archive?.Dispose();
+            this.archive.Dispose();
         }
 
         public FSTree ReadFSTree()
         {
             var root = new FSTreeNode(true);
-            foreach (var entry in archive.Entries)
+            foreach (var entry in this.archive.Entries)
             {
-                Console.WriteLine($"Loading {entry.FullName} into FS tree");
-                var paths = entry.FullName.Split('/', '\\');
+                Console.WriteLine($"Loading {entry.FileName} into FS tree");
+                var paths = entry.FileName.Split('/', '\\');
                 var node = root;
                 for (var i = 0; i < paths.Length - 1; i++)
                 {
@@ -37,7 +35,7 @@ namespace WinAVFS.Core
                 var name = paths[paths.Length - 1];
                 if (!string.IsNullOrEmpty(name))
                 {
-                    node = node.GetOrAddChild(false, name, entry.Length, entry.CompressedLength, entry);
+                    node = node.GetOrAddChild(false, name, (long) entry.Size, (long) entry.PackedSize, entry);
                 }
 
                 node.Context = entry;
@@ -49,17 +47,16 @@ namespace WinAVFS.Core
 
         public void ExtractFileUnmanaged(FSTreeNode node, IntPtr buffer)
         {
-            if (!(node.Context is ZipArchiveEntry entry))
+            if (!(node.Context is Entry entry))
             {
                 throw new ArgumentException();
             }
 
             unsafe
             {
-                using var source = entry.Open();
                 using var target = new UnmanagedMemoryStream((byte*) buffer.ToPointer(), node.Length, node.Length,
                     FileAccess.Write);
-                source.CopyTo(target);
+                entry.Extract(target);
             }
         }
     }
