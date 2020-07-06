@@ -16,6 +16,12 @@ namespace WinAVFS.Core
 
         public long CompressedLength { get; private set; } = 0;
 
+        public DateTime? CreationTime { get; internal set; }
+
+        public DateTime? LastAccessTime { get; internal set; }
+
+        public DateTime? LastWriteTime { get; internal set; }
+
         public Dictionary<string, FSTreeNode> Children { get; }
 
         public bool IsDirectory => this.Children != null;
@@ -55,7 +61,7 @@ namespace WinAVFS.Core
             {
                 Parent = this,
                 Name = name,
-                FullName = $"{this.FullName}{name}{(isDirectory ? "/" : "")}",
+                FullName = $"{this.FullName}{name}{(isDirectory ? "\\" : "")}",
                 Length = length,
                 CompressedLength = compressedLength,
                 Context = context,

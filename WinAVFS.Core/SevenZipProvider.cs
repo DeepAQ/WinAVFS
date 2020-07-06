@@ -1,24 +1,23 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
 using SevenZip;
 
 namespace WinAVFS.Core
 {
     public class SevenZipProvider : IArchiveProvider
     {
-        private readonly ThreadLocal<SevenZipExtractor> threadSafeArchive;
+        private readonly ConcurrentObjectPool<SevenZipExtractor> extractorPool;
 
         public SevenZipProvider(string path)
         {
             Console.WriteLine($"Opening archive {path} with 7z.dll");
-            this.threadSafeArchive = new ThreadLocal<SevenZipExtractor>(() => new SevenZipExtractor(path));
+            this.extractorPool = new ConcurrentObjectPool<SevenZipExtractor>(() => new SevenZipExtractor(path));
         }
 
         public void Dispose()
         {
-            foreach (var archive in this.threadSafeArchive.Values)
+            foreach (var archive in this.extractorPool.GetAll())
             {
                 archive.Dispose();
             }
@@ -26,11 +25,11 @@ namespace WinAVFS.Core
 
         public FSTree ReadFSTree()
         {
+            var extractor = this.extractorPool.Get();
             var root = new FSTreeNode(true);
-            var archive = threadSafeArchive.Value;
             long preAllocSize = 0;
             var entryCount = 0;
-            foreach (var entry in archive.ArchiveFileData)
+            foreach (var entry in extractor.ArchiveFileData)
             {
                 Console.WriteLine($"Loading {entry.FileName} into FS tree");
                 var paths = entry.FileName.Split('/', '\\');
@@ -44,6 +43,9 @@ namespace WinAVFS.Core
                 {
                     node = node.GetOrAddChild(entry.IsDirectory, paths[paths.Length - 1], (long) entry.Size,
                         (long) entry.Size, entry.Index);
+                    node.CreationTime = entry.CreationTime;
+                    node.LastAccessTime = entry.LastAccessTime;
+                    node.LastWriteTime = entry.LastWriteTime;
                     if (!node.IsDirectory && node.Buffer == IntPtr.Zero)
                     {
                         node.Buffer = Marshal.AllocHGlobal((IntPtr) node.Length);
@@ -54,6 +56,7 @@ namespace WinAVFS.Core
                 }
             }
 
+            this.extractorPool.Put(extractor);
             Console.WriteLine($"Loaded {entryCount} entries from archive");
             return new FSTree {Root = root};
         }
@@ -69,7 +72,9 @@ namespace WinAVFS.Core
             {
                 using var target = new UnmanagedMemoryStream((byte*) buffer.ToPointer(), node.Length, node.Length,
                     FileAccess.Write);
-                threadSafeArchive.Value.ExtractFile(index, target);
+                var extractor = this.extractorPool.Get();
+                extractor.ExtractFile(index, target);
+                this.extractorPool.Put(extractor);
             }
         }
     }

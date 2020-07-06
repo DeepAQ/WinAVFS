@@ -38,6 +38,7 @@ namespace WinAVFS.Core
                 if (!string.IsNullOrEmpty(name))
                 {
                     node = node.GetOrAddChild(false, name, entry.Length, entry.CompressedLength, entry);
+                    node.LastWriteTime = entry.LastWriteTime.DateTime;
                 }
 
                 node.Context = entry;

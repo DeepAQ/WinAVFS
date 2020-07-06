@@ -9,12 +9,12 @@ namespace WinAVFS.CLI
         {
             if (args.Length != 2)
             {
-                Console.WriteLine("Usage: WinAVFS.CLI.exe <path to archive> <drive letter>");
+                Console.WriteLine("Usage: WinAVFS.CLI.exe <path to archive> <mount point>");
                 return;
             }
 
             var fs = new ReadOnlyAVFS(new SevenZipProvider(args[0]));
-            fs.Mount(args[1][0]);
+            fs.Mount(args[1]);
         }
     }
 }

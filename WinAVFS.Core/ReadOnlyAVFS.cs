@@ -21,24 +21,25 @@ namespace WinAVFS.Core
             this.archiveProvider = archiveProvider;
         }
 
-        public void Mount(char driveLetter)
+        public void Mount(string mountPoint)
         {
-            this.Unmount(driveLetter);
+            this.Unmount(mountPoint);
 
             this.fsTree = this.archiveProvider.ReadFSTree();
-            this.Mount($"{driveLetter}:", DokanOptions.WriteProtection, new NullLogger());
+            this.Mount(mountPoint, DokanOptions.WriteProtection, new NullLogger());
         }
 
-        public void Unmount(char driveLetter)
+        public void Unmount(string mountPoint)
         {
-            Dokan.Unmount(driveLetter);
+            Dokan.RemoveMountPoint(mountPoint);
             this.fsTree = null;
         }
 
         #region Private helper methods
 
         private static readonly FileInformation[] EmptyFileInformation = new FileInformation[0];
-        private ConcurrentDictionary<string, FSTreeNode> nodeCache = new ConcurrentDictionary<string, FSTreeNode>();
+        private readonly DateTime defaultTime = DateTime.Now;
+        private readonly ConcurrentDictionary<string, FSTreeNode> nodeCache = new ConcurrentDictionary<string, FSTreeNode>();
 
         private FSTreeNode GetNode(string fileName, IDokanFileInfo info = null)
         {
@@ -158,16 +159,18 @@ namespace WinAVFS.Core
 
         public NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, IDokanFileInfo info)
         {
-            fileInfo = new FileInformation();
+            fileInfo = new FileInformation {FileName = fileName};
             var node = this.GetNode(fileName, info);
             if (node == null)
             {
                 return NtStatus.ObjectPathNotFound;
             }
 
-            fileInfo.FileName = node.Name;
-            fileInfo.Length = node.Length;
             fileInfo.Attributes = node.IsDirectory ? FileAttributes.Directory : FileAttributes.Normal;
+            fileInfo.CreationTime = node.CreationTime ?? this.defaultTime;
+            fileInfo.LastAccessTime = node.LastAccessTime ?? this.defaultTime;
+            fileInfo.LastWriteTime = node.LastWriteTime ?? this.defaultTime;
+            fileInfo.Length = node.Length;
             return NtStatus.Success;
         }
 
@@ -183,8 +186,11 @@ namespace WinAVFS.Core
             files = node.Children.Select(child => new FileInformation
             {
                 FileName = child.Value.Name,
-                Length = child.Value.Length,
-                Attributes = (child.Value.IsDirectory ? FileAttributes.Directory : 0) | FileAttributes.ReadOnly
+                Attributes = child.Value.IsDirectory ? FileAttributes.Directory : FileAttributes.Normal,
+                CreationTime = child.Value.CreationTime ?? this.defaultTime,
+                LastAccessTime = child.Value.LastAccessTime ?? this.defaultTime,
+                LastWriteTime = child.Value.LastWriteTime ?? this.defaultTime,
+                Length = child.Value.Length
             }).ToList();
             return NtStatus.Success;
         }
@@ -245,9 +251,7 @@ namespace WinAVFS.Core
         public NtStatus GetDiskFreeSpace(out long freeBytesAvailable, out long totalNumberOfBytes,
             out long totalNumberOfFreeBytes, IDokanFileInfo info)
         {
-            freeBytesAvailable = 0;
-            totalNumberOfBytes = this.fsTree.Root.Length;
-            totalNumberOfFreeBytes = 0;
+            freeBytesAvailable = totalNumberOfFreeBytes = totalNumberOfBytes = this.fsTree.Root.Length;
             return NtStatus.Success;
         }
 
@@ -255,9 +259,10 @@ namespace WinAVFS.Core
             out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
         {
             volumeLabel = "AVFS";
-            features = FileSystemFeatures.VolumeIsCompressed | FileSystemFeatures.ReadOnlyVolume;
+            features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.UnicodeOnDisk |
+                       FileSystemFeatures.VolumeIsCompressed | FileSystemFeatures.ReadOnlyVolume;
             fileSystemName = $"WinAVFS {Assembly.GetExecutingAssembly().GetName().Version}";
-            maximumComponentLength = 0;
+            maximumComponentLength = 255;
             return NtStatus.Success;
         }
 
