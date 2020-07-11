@@ -61,7 +61,7 @@ namespace WinAVFS.Core
             {
                 Parent = this,
                 Name = name,
-                FullName = $"{this.FullName}{name}{(isDirectory ? "\\" : "")}",
+                FullName = $"{this.FullName}\\{name}",
                 Length = length,
                 CompressedLength = compressedLength,
                 Context = context,

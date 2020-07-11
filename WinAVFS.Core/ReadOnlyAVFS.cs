@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Security.AccessControl;
 using DokanNet;
 using DokanNet.Logging;
@@ -39,7 +38,9 @@ namespace WinAVFS.Core
 
         private static readonly FileInformation[] EmptyFileInformation = new FileInformation[0];
         private readonly DateTime defaultTime = DateTime.Now;
-        private readonly ConcurrentDictionary<string, FSTreeNode> nodeCache = new ConcurrentDictionary<string, FSTreeNode>();
+
+        private readonly ConcurrentDictionary<string, FSTreeNode> nodeCache =
+            new ConcurrentDictionary<string, FSTreeNode>();
 
         private FSTreeNode GetNode(string fileName, IDokanFileInfo info = null)
         {
@@ -159,13 +160,14 @@ namespace WinAVFS.Core
 
         public NtStatus GetFileInformation(string fileName, out FileInformation fileInfo, IDokanFileInfo info)
         {
-            fileInfo = new FileInformation {FileName = fileName};
+            fileInfo = new FileInformation();
             var node = this.GetNode(fileName, info);
             if (node == null)
             {
                 return NtStatus.ObjectPathNotFound;
             }
 
+            fileInfo.FileName = node.FullName;
             fileInfo.Attributes = node.IsDirectory ? FileAttributes.Directory : FileAttributes.Normal;
             fileInfo.CreationTime = node.CreationTime ?? this.defaultTime;
             fileInfo.LastAccessTime = node.LastAccessTime ?? this.defaultTime;
@@ -258,11 +260,10 @@ namespace WinAVFS.Core
         public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features,
             out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
         {
-            volumeLabel = "AVFS";
+            volumeLabel = fileSystemName = "AVFS";
             features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.UnicodeOnDisk |
                        FileSystemFeatures.VolumeIsCompressed | FileSystemFeatures.ReadOnlyVolume;
-            fileSystemName = $"WinAVFS {Assembly.GetExecutingAssembly().GetName().Version}";
-            maximumComponentLength = 255;
+            maximumComponentLength = 260;
             return NtStatus.Success;
         }
 
