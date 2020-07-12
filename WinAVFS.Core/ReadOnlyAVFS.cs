@@ -262,7 +262,8 @@ namespace WinAVFS.Core
         public NtStatus GetVolumeInformation(out string volumeLabel, out FileSystemFeatures features,
             out string fileSystemName, out uint maximumComponentLength, IDokanFileInfo info)
         {
-            volumeLabel = fileSystemName = "AVFS";
+            volumeLabel = "AVFS";
+            fileSystemName = "exFAT";
             features = FileSystemFeatures.CasePreservedNames | FileSystemFeatures.UnicodeOnDisk |
                        FileSystemFeatures.VolumeIsCompressed | FileSystemFeatures.ReadOnlyVolume;
             maximumComponentLength = 260;
