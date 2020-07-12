@@ -30,7 +30,7 @@ namespace WinAVFS.Core
 
         public IntPtr Buffer { get; internal set; } = IntPtr.Zero;
 
-        private long extracted = 0;
+        private bool extracted = false;
 
         public FSTreeNode() : this(false)
         {
@@ -52,9 +52,10 @@ namespace WinAVFS.Core
                 return null;
             }
 
-            if (this.Children.ContainsKey(name.ToLower()))
+            var caseInsensitiveName = name.ToLower();
+            if (this.Children.ContainsKey(caseInsensitiveName))
             {
-                return this.Children[name.ToLower()];
+                return this.Children[caseInsensitiveName];
             }
 
             var child = new FSTreeNode(isDirectory)
@@ -66,7 +67,7 @@ namespace WinAVFS.Core
                 CompressedLength = compressedLength,
                 Context = context,
             };
-            this.Children[name.ToLower()] = child;
+            this.Children[caseInsensitiveName] = child;
 
             if (!isDirectory)
             {
@@ -84,14 +85,14 @@ namespace WinAVFS.Core
 
         public void FillBuffer(Action<IntPtr> extractAction)
         {
-            if (this.extracted > 0 || this.IsDirectory)
+            if (this.extracted || this.IsDirectory)
             {
                 return;
             }
 
             lock (this)
             {
-                if (this.extracted == 0)
+                if (!this.extracted)
                 {
                     if (this.Buffer == IntPtr.Zero)
                     {
@@ -101,13 +102,12 @@ namespace WinAVFS.Core
                     try
                     {
                         extractAction(this.Buffer);
+                        this.extracted = true;
                     }
                     catch (Exception ex)
                     {
                         Console.Error.WriteLine(ex.StackTrace);
                     }
-
-                    this.extracted = 1;
                 }
             }
         }

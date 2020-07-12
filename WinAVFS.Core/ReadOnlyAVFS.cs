@@ -25,7 +25,7 @@ namespace WinAVFS.Core
             this.Unmount(mountPoint);
 
             this.fsTree = this.archiveProvider.ReadFSTree();
-            this.Mount(mountPoint, DokanOptions.WriteProtection, new NullLogger());
+            this.Mount(mountPoint, DokanOptions.WriteProtection | DokanOptions.MountManager, new NullLogger());
         }
 
         public void Unmount(string mountPoint)
@@ -50,22 +50,25 @@ namespace WinAVFS.Core
             }
 
             fileName = fileName.ToLower();
-            return nodeCache.GetOrAdd(fileName, x =>
+            if (nodeCache.TryGetValue(fileName, out var nodeFromCache))
             {
-                var paths = x.Split('\\');
-                var node = this.fsTree.Root;
-                foreach (var path in paths.Where(y => !string.IsNullOrEmpty(y)))
-                {
-                    if (!node.IsDirectory || !node.Children.ContainsKey(path))
-                    {
-                        return null;
-                    }
+                return nodeFromCache;
+            }
 
-                    node = node.Children[path];
+            var paths = fileName.Split('\\');
+            var node = this.fsTree.Root;
+            foreach (var path in paths.Where(y => !string.IsNullOrEmpty(y)))
+            {
+                if (!node.IsDirectory || !node.Children.ContainsKey(path))
+                {
+                    return null;
                 }
 
-                return node;
-            });
+                node = node.Children[path];
+            }
+
+            nodeCache.TryAdd(fileName, node);
+            return node;
         }
 
         #endregion
@@ -77,7 +80,6 @@ namespace WinAVFS.Core
         {
             if (mode != FileMode.Open && mode != FileMode.OpenOrCreate)
             {
-                Console.WriteLine($"Blocked CreateFile {fileName} {mode}");
                 return NtStatus.AccessDenied;
             }
 

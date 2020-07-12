@@ -11,7 +11,7 @@ namespace WinAVFS.Core
 
         public SevenZipProvider(string path)
         {
-            Console.WriteLine($"Opening archive {path} with 7z.dll");
+            Console.WriteLine($"Loading archive {path} with 7z.dll");
             this.extractorPool = new ConcurrentObjectPool<SevenZipExtractor>(() => new SevenZipExtractor(path));
         }
 
@@ -27,11 +27,9 @@ namespace WinAVFS.Core
         {
             var extractor = this.extractorPool.Get();
             var root = new FSTreeNode(true);
-            long preAllocSize = 0;
-            var entryCount = 0;
             foreach (var entry in extractor.ArchiveFileData)
             {
-                Console.WriteLine($"Loading {entry.FileName} into FS tree");
+                // Console.WriteLine($"Loading {entry.FileName} into FS tree");
                 var paths = entry.FileName.Split('/', '\\');
                 var node = root;
                 for (var i = 0; i < paths.Length - 1; i++)
@@ -46,18 +44,15 @@ namespace WinAVFS.Core
                     node.CreationTime = entry.CreationTime;
                     node.LastAccessTime = entry.LastAccessTime;
                     node.LastWriteTime = entry.LastWriteTime;
-                    if (!node.IsDirectory && node.Buffer == IntPtr.Zero)
-                    {
-                        node.Buffer = Marshal.AllocHGlobal((IntPtr) node.Length);
-                        preAllocSize += node.Length;
-                        Console.WriteLine($"TotalPreAllocSize = {preAllocSize}");
-                        entryCount++;
-                    }
+                    // if (!node.IsDirectory && node.Buffer == IntPtr.Zero)
+                    // {
+                    //     node.Buffer = Marshal.AllocHGlobal((IntPtr) node.Length);
+                    // }
                 }
             }
 
+            Console.WriteLine($"Loaded {extractor.FilesCount} entries from archive");
             this.extractorPool.Put(extractor);
-            Console.WriteLine($"Loaded {entryCount} entries from archive");
             return new FSTree {Root = root};
         }
 
